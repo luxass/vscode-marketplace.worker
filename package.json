@@ -12,6 +12,7 @@
   "dependencies": {
     "@octokit/core": "^5.0.1",
     "@octokit/plugin-paginate-rest": "^9.0.0",
+    "github-schema": "^1.0.0",
     "hono": "^3.7.2",
     "semver": "^7.5.4"
   },

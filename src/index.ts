@@ -12,8 +12,62 @@ import { logger } from "hono/logger";
 
 const $Octokit = Octokit.plugin(paginateRest);
 
+export interface Root {
+  data: Data
+}
+
+export interface Data {
+  repository: Repository
+}
+
+export interface Repository {
+  object: Object
+}
+
+export interface Object {
+  entries: Entry[]
+}
+
+export interface Entry {
+  name: string
+  path: string
+  object: Object2
+}
+
+export interface Object2 {
+  entries?: Entry2[]
+}
+
+export interface Entry2 {
+  name: string
+  pathRaw: string
+}
+
+const BUILTIN_EXTENSIONS_QUERY = `#graphql
+  query {
+    repository(owner: "microsoft", name: "vscode") {
+      object(expression: "HEAD:extensions") {
+        ... on Tree {
+          entries {
+            name
+            path
+            object {
+              ... on Tree {
+                entries {
+                  name
+                  pathRaw
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
 const app = new Hono<{
-  Variables: {
+  Bindings: {
     GITHUB_TOKEN: string
   }
 }>();
@@ -34,7 +88,7 @@ app.use("*", async (ctx, next) => {
 
 app.get("/releases", async (ctx) => {
   const octokit = new $Octokit({
-    auth: ctx.var.GITHUB_TOKEN,
+    auth: ctx.env.GITHUB_TOKEN,
   });
 
   const releases = await octokit.paginate("GET /repos/{owner}/{repo}/releases", {
@@ -57,7 +111,7 @@ app.get("/releases", async (ctx) => {
 
 app.get("/releases/latest", async (ctx) => {
   const octokit = new $Octokit({
-    auth: ctx.var.GITHUB_TOKEN,
+    auth: ctx.env.GITHUB_TOKEN,
   });
 
   const { data: releases } = await octokit.request("GET /repos/{owner}/{repo}/releases", {
@@ -78,6 +132,33 @@ app.get("/releases/latest", async (ctx) => {
       "Content-Type": "application/json",
     },
   });
+});
+
+app.get("/builtin-extensions", async (ctx) => {
+  const octokit = new $Octokit({
+    auth: ctx.env.GITHUB_TOKEN,
+  });
+
+  const {
+    repository: {
+      object: files,
+    },
+  } = await octokit.graphql<{
+    repository: Repository
+  }>(BUILTIN_EXTENSIONS_QUERY, {
+    headers: {
+      "Authorization": `Bearer ${ctx.env.GITHUB_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  ctx.json({
+  });
+});
+
+app.onError((ctx, err) => {
+  console.error(err);
+  return new Response("Internal Server Error", { status: 500 });
 });
 
 export default app;
