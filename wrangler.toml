@@ -1,0 +1,5 @@
+name = "vscode-api"
+main = "src/index.ts"
+compatibility_date = "2023-08-20"
+
+[vars]
