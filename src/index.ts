@@ -26,7 +26,7 @@ app.use("*", async (ctx, next) => {
   }
 
   if (ctx.req.url.startsWith("latest-vscode-release")) {
-    return ctx.redirect("/releases/latest-release");
+    return ctx.redirect("/releases/latest");
   }
 
   return next();
