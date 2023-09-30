@@ -9,11 +9,12 @@ import semver from "semver";
 
 import { Hono } from "hono";
 import { logger } from "hono/logger";
+import { HTTPException } from "hono/http-exception";
 
 const $Octokit = Octokit.plugin(paginateRest);
 
 const app = new Hono<{
-  Variables: {
+  Bindings: {
     GITHUB_TOKEN: string
   }
 }>();
@@ -21,20 +22,21 @@ const app = new Hono<{
 app.use("*", logger());
 
 app.use("*", async (ctx, next) => {
-  if (ctx.req.url.startsWith("vscode-releases")) {
+  const url = new URL(ctx.req.url);
+  if (url.host.startsWith("vscode-releases")) {
     return ctx.redirect("/releases");
   }
 
-  if (ctx.req.url.startsWith("latest-vscode-release")) {
+  if (url.host.startsWith("latest-vscode-release")) {
     return ctx.redirect("/releases/latest");
   }
 
-  return next();
+  return await next();
 });
 
 app.get("/releases", async (ctx) => {
   const octokit = new $Octokit({
-    auth: ctx.var.GITHUB_TOKEN,
+    auth: ctx.env.GITHUB_TOKEN,
   });
 
   const releases = await octokit.paginate("GET /repos/{owner}/{repo}/releases", {
@@ -43,21 +45,19 @@ app.get("/releases", async (ctx) => {
     per_page: 100,
   }).then((releases) => releases.filter((release) => semver.gte(release.tag_name, "1.45.0")));
 
-  return new Response(JSON.stringify({
+  return ctx.json({
     releases: releases.map((release) => ({
       tag: release.tag_name,
       url: release.url,
     })),
-  }), {
-    headers: {
-      "Content-Type": "application/json",
-    },
+  }, 200, {
+    "Content-Type": "application/json",
   });
 });
 
 app.get("/releases/latest", async (ctx) => {
   const octokit = new $Octokit({
-    auth: ctx.var.GITHUB_TOKEN,
+    auth: ctx.env.GITHUB_TOKEN,
   });
 
   const { data: releases } = await octokit.request("GET /repos/{owner}/{repo}/releases", {
@@ -71,12 +71,20 @@ app.get("/releases/latest", async (ctx) => {
     return new Response("Not found", { status: 404 });
   }
 
-  return new Response(JSON.stringify({
+  return ctx.json({
     tag: release.tag_name,
-  }), {
-    headers: {
-      "Content-Type": "application/json",
-    },
+  }, 200, {
+    "Content-Type": "application/json",
+  });
+});
+
+app.onError(async (err) => {
+  if (err instanceof HTTPException) {
+    return err.getResponse();
+  }
+
+  return new Response(err.stack, {
+    status: 500,
   });
 });
 
