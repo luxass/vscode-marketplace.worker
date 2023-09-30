@@ -9,38 +9,34 @@ import semver from "semver";
 
 import { Hono } from "hono";
 import { logger } from "hono/logger";
+import { HTTPException } from "hono/http-exception";
 
 const $Octokit = Octokit.plugin(paginateRest);
 
-export interface Root {
-  data: Data
-}
-
-export interface Data {
-  repository: Repository
-}
-
 export interface Repository {
-  object: Object
+  object: RepositoryObject
 }
 
-export interface Object {
+export interface RepositoryObject {
   entries: Entry[]
 }
 
 export interface Entry {
+  type: "blob" | "tree"
   name: string
   path: string
-  object: Object2
-}
-
-export interface Object2 {
-  entries?: Entry2[]
-}
-
-export interface Entry2 {
-  name: string
   pathRaw: string
+  object: {
+    entries?: (Omit<Entry, "object">)[]
+  }
+}
+
+export interface BuiltinExtension {
+  name: string
+  version: string
+  pkgJSON: string
+  pkgNlsJSON: string
+  contributes?: any // TODO: Add a correct type for this.
 }
 
 const BUILTIN_EXTENSIONS_QUERY = `#graphql
@@ -49,12 +45,16 @@ const BUILTIN_EXTENSIONS_QUERY = `#graphql
       object(expression: "HEAD:extensions") {
         ... on Tree {
           entries {
+            type
             name
             path
+            pathRaw
             object {
               ... on Tree {
                 entries {
+                  type
                   name
+                  path
                   pathRaw
                 }
               }
@@ -70,20 +70,24 @@ const app = new Hono<{
   Bindings: {
     GITHUB_TOKEN: string
   }
+  Variables: {
+    FILES?: BuiltinExtension[]
+  }
 }>();
 
 app.use("*", logger());
 
 app.use("*", async (ctx, next) => {
-  if (ctx.req.url.startsWith("vscode-releases")) {
+  const url = new URL(ctx.req.url);
+  if (url.host.startsWith("vscode-releases")) {
     return ctx.redirect("/releases");
   }
 
-  if (ctx.req.url.startsWith("latest-vscode-release")) {
+  if (url.host.startsWith("latest-vscode-release")) {
     return ctx.redirect("/releases/latest");
   }
 
-  return next();
+  return await next();
 });
 
 app.get("/releases", async (ctx) => {
@@ -97,15 +101,13 @@ app.get("/releases", async (ctx) => {
     per_page: 100,
   }).then((releases) => releases.filter((release) => semver.gte(release.tag_name, "1.45.0")));
 
-  return new Response(JSON.stringify({
+  return ctx.json({
     releases: releases.map((release) => ({
       tag: release.tag_name,
       url: release.url,
     })),
-  }), {
-    headers: {
-      "Content-Type": "application/json",
-    },
+  }, 200, {
+    "Content-Type": "application/json",
   });
 });
 
@@ -125,16 +127,14 @@ app.get("/releases/latest", async (ctx) => {
     return new Response("Not found", { status: 404 });
   }
 
-  return new Response(JSON.stringify({
+  return ctx.json({
     tag: release.tag_name,
-  }), {
-    headers: {
-      "Content-Type": "application/json",
-    },
+  }, 200, {
+    "Content-Type": "application/json",
   });
 });
 
-app.get("/builtin-extensions", async (ctx) => {
+app.use("/builtin-extensions", async (ctx, next) => {
   const octokit = new $Octokit({
     auth: ctx.env.GITHUB_TOKEN,
   });
@@ -147,18 +147,87 @@ app.get("/builtin-extensions", async (ctx) => {
     repository: Repository
   }>(BUILTIN_EXTENSIONS_QUERY, {
     headers: {
-      "Authorization": `Bearer ${ctx.env.GITHUB_TOKEN}`,
       "Content-Type": "application/json",
     },
   });
 
-  ctx.json({
+  const entries = files.entries.filter((entry) => entry.type === "tree")
+    .map((entry) => {
+      if (!entry.object.entries) {
+        return null;
+      }
+
+      if (!entry.object.entries.some((entry) => entry.name === "package.json") && !entry.object.entries.some((entry) => entry.name === "package.nls.json")) {
+        return null;
+      }
+
+      const pkgJson = entry.object.entries.find((entry) => entry.name === "package.json");
+      if (!pkgJson) {
+        return null;
+      }
+
+      const pkgNlsJson = entry.object.entries.find((entry) => entry.name === "package.nls.json");
+      if (!pkgNlsJson) {
+        return null;
+      }
+
+      return entry;
+    }).filter(Boolean);
+
+  const builtins = await Promise.all(entries.map(async (entry) => {
+    return {
+
+    };
+  }));
+
+  ctx.set("FILES", builtins);
+
+  await next();
+});
+
+app.get("/builtin-extensions", async (ctx) => {
+  const files = ctx.get("FILES");
+  if (!files) {
+    return new Response("Not found", { status: 404 });
+  }
+
+  return ctx.json({
+    files,
   });
 });
 
-app.onError((ctx, err) => {
-  console.error(err);
-  return new Response("Internal Server Error", { status: 500 });
+app.get("/builtin-extensions/:ext", async (ctx) => {
+  const files = ctx.get("FILES");
+  const file = files.find((file) => file.name === ctx.req.param("ext"));
+  if (!file) {
+    return new Response("Not found", { status: 404 });
+  }
+
+  return ctx.json({
+    file,
+  });
+});
+
+app.get("/builtin-extensions/:ext/package.json", async (ctx) => {
+  const files = ctx.get("FILES");
+  const file = files.find((file) => file.name === ctx.req.param("ext"));
+  if (!file) {
+    return new Response("Not found", { status: 404 });
+  }
+
+  return ctx.json({
+    file,
+  });
+});
+
+app.onError(async (err) => {
+  if (err instanceof HTTPException) {
+    return err.getResponse();
+  }
+
+  return new Response(err.stack, {
+    status: 500,
+  });
 });
 
 export default app;
