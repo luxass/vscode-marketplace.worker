@@ -31,11 +31,11 @@ app.get(
 
 app.use("*", async (ctx, next) => {
   const url = new URL(ctx.req.url);
-  if (url.host.startsWith("vscode-releases")) {
+  if (url.host.startsWith("vscode-releases") && url.pathname !== "/releases") {
     return ctx.redirect("/releases");
   }
 
-  if (url.host.startsWith("latest-vscode-release")) {
+  if (url.host.startsWith("latest-vscode-release") && url.pathname !== "/releases/latest") {
     return ctx.redirect("/releases/latest");
   }
 
