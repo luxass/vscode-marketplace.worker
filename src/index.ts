@@ -10,6 +10,7 @@ import semver from "semver";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { HTTPException } from "hono/http-exception";
+import { cache } from "hono/cache";
 
 const $Octokit = Octokit.plugin(paginateRest);
 
@@ -76,14 +77,21 @@ const app = new Hono<{
 }>();
 
 app.use("*", logger());
+app.get(
+  "*",
+  cache({
+    cacheName: "vscode-api",
+    cacheControl: "max-age=3600",
+  }),
+);
 
 app.use("*", async (ctx, next) => {
   const url = new URL(ctx.req.url);
-  if (url.host.startsWith("vscode-releases")) {
+  if (url.host.startsWith("vscode-releases") && url.pathname !== "/releases") {
     return ctx.redirect("/releases");
   }
 
-  if (url.host.startsWith("latest-vscode-release")) {
+  if (url.host.startsWith("latest-vscode-release") && url.pathname !== "/releases/latest") {
     return ctx.redirect("/releases/latest");
   }
 
