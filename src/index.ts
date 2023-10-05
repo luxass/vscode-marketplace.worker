@@ -34,12 +34,39 @@ export interface Entry {
   }
 }
 
-export interface BuiltinExtension {
-  name: string
-  version: string
-  pkgJSON: string
-  pkgNlsJSON: string
-  contributes?: any // TODO: Add a correct type for this.
+function translate<T>(originalObject: T, translationValues: any): T {
+  if (typeof originalObject !== "object") {
+    return originalObject;
+  }
+
+  const translatedObject: any = {};
+
+  for (const key in originalObject) {
+    const value = originalObject[key];
+
+    if (typeof value === "string") {
+      const matches = value.match(/%([^%]+)%/);
+
+      if (matches) {
+        const placeholder = matches[1];
+        const translation = translationValues[placeholder];
+
+        if (translation) {
+          translatedObject[key] = value.replace(`%${placeholder}%`, translation);
+        } else {
+          translatedObject[key] = value;
+        }
+      } else {
+        translatedObject[key] = value;
+      }
+    } else if (typeof value === "object") {
+      translatedObject[key] = translate(value, translationValues);
+    } else {
+      translatedObject[key] = value;
+    }
+  }
+
+  return translatedObject;
 }
 
 const BUILTIN_QUERY = `#graphql
@@ -224,29 +251,41 @@ app.get("/builtin-extensions/:ext", async (ctx) => {
     return new Response("Not found", { status: 404 });
   }
 
-  const pkgJson = files.entries.find((entry) => entry.name === "package.json");
-  if (!pkgJson) {
+  const pkgEntry = files.entries.find((entry) => entry.name === "package.json");
+  if (!pkgEntry) {
     return new Response("Not found", { status: 404 });
   }
 
-  const { data } = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", {
+  const pkgNLSEntry = files.entries.find((entry) => entry.name === "package.nls.json");
+  if (!pkgNLSEntry) {
+    return new Response("Not found", { status: 404 });
+  }
+
+  const { data: pkgJSONData } = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", {
     owner: "microsoft",
     repo: "vscode",
-    path: pkgJson.path,
+    path: pkgEntry.path,
   });
 
-  const pkgJSON = data;
-  if (Array.isArray(pkgJSON)) {
+  const { data: pkgNLSJSONData } = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", {
+    owner: "microsoft",
+    repo: "vscode",
+    path: pkgNLSEntry.path,
+  });
+
+  if (Array.isArray(pkgJSONData) || Array.isArray(pkgNLSJSONData)) {
     return new Response("Not found", { status: 404 });
   }
 
-  if (pkgJSON.type !== "file") {
+  if (pkgJSONData.type !== "file" || pkgNLSJSONData.type !== "file") {
     return new Response("Not found", { status: 404 });
   }
 
-  const content = Buffer.from(pkgJSON.content, "base64").toString("utf-8");
+  const pkgJSON = JSON.parse(Buffer.from(pkgJSONData.content, "base64").toString("utf-8"));
+  const pkgNLSJSON = JSON.parse(Buffer.from(pkgNLSJSONData.content, "base64").toString("utf-8"));
 
-  return ctx.json(JSON.parse(content));
+  const obj = translate(pkgJSON, pkgNLSJSON);
+  return ctx.json(obj);
 });
 
 app.onError(async (err, ctx) => {
