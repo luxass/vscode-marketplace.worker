@@ -1,7 +1,9 @@
 import {
+  Buffer,
+} from "node:buffer";
+import {
   Octokit,
 } from "@octokit/core";
-
 import {
   paginateRest,
 } from "@octokit/plugin-paginate-rest";
@@ -10,7 +12,7 @@ import semver from "semver";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { HTTPException } from "hono/http-exception";
-import { cache } from "hono/cache";
+import { cache } from "./cache";
 
 const $Octokit = Octokit.plugin(paginateRest);
 
@@ -40,10 +42,10 @@ export interface BuiltinExtension {
   contributes?: any // TODO: Add a correct type for this.
 }
 
-const BUILTIN_EXTENSIONS_QUERY = `#graphql
-  query {
+const BUILTIN_QUERY = `#graphql
+  query getBuiltin($path: String!) {
     repository(owner: "microsoft", name: "vscode") {
-      object(expression: "HEAD:extensions") {
+      object(expression: $path) {
         ... on Tree {
           entries {
             type
@@ -70,9 +72,7 @@ const BUILTIN_EXTENSIONS_QUERY = `#graphql
 const app = new Hono<{
   Bindings: {
     GITHUB_TOKEN: string
-  }
-  Variables: {
-    FILES?: BuiltinExtension[]
+    WORKER_ENV: string
   }
 }>();
 
@@ -142,7 +142,7 @@ app.get("/releases/latest", async (ctx) => {
   });
 });
 
-app.use("/builtin-extensions", async (ctx, next) => {
+app.get("/builtin-extensions", async (ctx) => {
   const octokit = new $Octokit({
     auth: ctx.env.GITHUB_TOKEN,
   });
@@ -153,88 +153,116 @@ app.use("/builtin-extensions", async (ctx, next) => {
     },
   } = await octokit.graphql<{
     repository: Repository
-  }>(BUILTIN_EXTENSIONS_QUERY, {
+  }>(BUILTIN_QUERY, {
+    path: "HEAD:extensions",
     headers: {
       "Content-Type": "application/json",
     },
   });
 
-  const entries = files.entries.filter((entry) => entry.type === "tree")
-    .map((entry) => {
-      if (!entry.object.entries) {
-        return null;
-      }
+  if (!files.entries) {
+    return new Response("Not found", { status: 404 });
+  }
 
-      if (!entry.object.entries.some((entry) => entry.name === "package.json") && !entry.object.entries.some((entry) => entry.name === "package.nls.json")) {
-        return null;
-      }
+  return ctx.json({
+    extensions: files.entries.filter((entry) => entry.type === "tree").map((entry) => entry.name),
+  });
 
-      const pkgJson = entry.object.entries.find((entry) => entry.name === "package.json");
-      if (!pkgJson) {
-        return null;
-      }
+  // const builtinPromises = files.entries.filter((entry) => entry.type === "tree")
+  //   .map(async (entry) => {
+  //     if (!entry.object.entries) {
+  //       return null;
+  //     }
 
-      const pkgNlsJson = entry.object.entries.find((entry) => entry.name === "package.nls.json");
-      if (!pkgNlsJson) {
-        return null;
-      }
+  //     if (!entry.object.entries.some((entry) => entry.name === "package.json") && !entry.object.entries.some((entry) => entry.name === "package.nls.json")) {
+  //       return null;
+  //     }
 
-      return entry;
-    }).filter(Boolean);
+  //     const pkgJson = entry.object.entries.find((entry) => entry.name === "package.json");
+  //     if (!pkgJson) {
+  //       return null;
+  //     }
 
-  const builtins = await Promise.all(entries.map(async (entry) => {
-    return {
+  //     const pkgNlsJson = entry.object.entries.find((entry) => entry.name === "package.nls.json");
+  //     if (!pkgNlsJson) {
+  //       return null;
+  //     }
 
-    };
-  }));
-
-  ctx.set("FILES", builtins);
-
-  await next();
+  //     return {
+  //       name: entry?.name ?? "",
+  //       version: "",
+  //       pkgJSON: "",
+  //       pkgNlsJSON: "",
+  //     };
+  //   });
 });
 
-app.get("/builtin-extensions", async (ctx) => {
-  const files = ctx.get("FILES");
+app.get("/builtin-extensions/:ext", async (ctx) => {
+  const octokit = new $Octokit({
+    auth: ctx.env.GITHUB_TOKEN,
+  });
+
+  const extName = ctx.req.param("ext");
+  if (!extName) {
+    return new Response("Not found", { status: 404 });
+  }
+
+  const {
+    repository: {
+      object: files,
+    },
+  } = await octokit.graphql<{
+    repository: Repository
+  }>(BUILTIN_QUERY, {
+    path: `HEAD:extensions/${extName}`,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
   if (!files) {
     return new Response("Not found", { status: 404 });
   }
 
-  return ctx.json({
-    files,
-  });
-});
-
-app.get("/builtin-extensions/:ext", async (ctx) => {
-  const files = ctx.get("FILES");
-  const file = files.find((file) => file.name === ctx.req.param("ext"));
-  if (!file) {
+  const pkgJson = files.entries.find((entry) => entry.name === "package.json");
+  if (!pkgJson) {
     return new Response("Not found", { status: 404 });
   }
 
-  return ctx.json({
-    file,
+  const { data } = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", {
+    owner: "microsoft",
+    repo: "vscode",
+    path: pkgJson.path,
   });
-});
 
-app.get("/builtin-extensions/:ext/package.json", async (ctx) => {
-  const files = ctx.get("FILES");
-  const file = files.find((file) => file.name === ctx.req.param("ext"));
-  if (!file) {
+  const pkgJSON = data;
+  if (Array.isArray(pkgJSON)) {
     return new Response("Not found", { status: 404 });
   }
 
-  return ctx.json({
-    file,
-  });
+  if (pkgJSON.type !== "file") {
+    return new Response("Not found", { status: 404 });
+  }
+
+  const content = Buffer.from(pkgJSON.content, "base64").toString("utf-8");
+
+  return ctx.json(JSON.parse(content));
 });
 
-app.onError(async (err) => {
+app.onError(async (err, ctx) => {
   if (err instanceof HTTPException) {
     return err.getResponse();
   }
 
-  return new Response(err.stack, {
+  const message = ctx.env.WORKER_ENV === "production" ? "Internal server error" : err.stack;
+  return new Response(message, {
     status: 500,
+  });
+});
+
+app.notFound(async () => {
+  return new Response("Not found", {
+    status: 404,
   });
 });
 
