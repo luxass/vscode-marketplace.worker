@@ -1,7 +1,4 @@
 import {
-  Buffer,
-} from "node:buffer";
-import {
   Octokit,
 } from "@octokit/core";
 import {
@@ -15,6 +12,38 @@ import { HTTPException } from "hono/http-exception";
 import { cache } from "./cache";
 
 const $Octokit = Octokit.plugin(paginateRest);
+
+function base64ToRawText(base64: string) {
+  const base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+  const paddingChar = "=";
+  let output = "";
+  let buffer = 0;
+  let bufferLength = 0;
+
+  for (let i = 0; i < base64.length; i++) {
+    const char = base64.charAt(i);
+    const charIndex = base64Chars.indexOf(char);
+
+    if (char === paddingChar) {
+      break; // Padding character, stop decoding
+    }
+
+    if (charIndex === -1) {
+      continue; // Skip invalid characters
+    }
+
+    buffer = (buffer << 6) | charIndex;
+    bufferLength += 6;
+
+    if (bufferLength >= 8) {
+      bufferLength -= 8;
+      const charCode = (buffer >> bufferLength) & 0xFF;
+      output += String.fromCharCode(charCode);
+    }
+  }
+
+  return output;
+}
 
 export interface Repository {
   object: RepositoryObject
@@ -280,9 +309,8 @@ app.get("/builtin-extensions/:ext", async (ctx) => {
   if (pkgJSONData.type !== "file" || pkgNLSJSONData.type !== "file") {
     return new Response("Not found", { status: 404 });
   }
-
-  const pkgJSON = JSON.parse(Buffer.from(pkgJSONData.content, "base64").toString("utf-8"));
-  const pkgNLSJSON = JSON.parse(Buffer.from(pkgNLSJSONData.content, "base64").toString("utf-8"));
+  const pkgJSON = JSON.parse(base64ToRawText(pkgJSONData.content));
+  const pkgNLSJSON = JSON.parse(base64ToRawText(pkgNLSJSONData.content));
 
   const obj = translate(pkgJSON, pkgNLSJSON);
   return ctx.json(obj);
