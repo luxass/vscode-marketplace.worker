@@ -221,36 +221,15 @@ app.get("/builtin-extensions", async (ctx) => {
   }
 
   return ctx.json({
-    extensions: files.entries.filter((entry) => entry.type === "tree").map((entry) => entry.name),
+    extensions: files.entries.filter((entry) => entry.type === "tree").filter((entry) => {
+      const { entries } = entry.object;
+      if (!entries) {
+        return false;
+      }
+
+      return entries.some((entry) => entry.name === "package.json" && entry.type === "blob");
+    }).map((entry) => entry.name),
   });
-
-  // const builtinPromises = files.entries.filter((entry) => entry.type === "tree")
-  //   .map(async (entry) => {
-  //     if (!entry.object.entries) {
-  //       return null;
-  //     }
-
-  //     if (!entry.object.entries.some((entry) => entry.name === "package.json") && !entry.object.entries.some((entry) => entry.name === "package.nls.json")) {
-  //       return null;
-  //     }
-
-  //     const pkgJson = entry.object.entries.find((entry) => entry.name === "package.json");
-  //     if (!pkgJson) {
-  //       return null;
-  //     }
-
-  //     const pkgNlsJson = entry.object.entries.find((entry) => entry.name === "package.nls.json");
-  //     if (!pkgNlsJson) {
-  //       return null;
-  //     }
-
-  //     return {
-  //       name: entry?.name ?? "",
-  //       version: "",
-  //       pkgJSON: "",
-  //       pkgNlsJSON: "",
-  //     };
-  //   });
 });
 
 app.get("/builtin-extensions/:ext", async (ctx) => {
