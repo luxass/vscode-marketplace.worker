@@ -7,6 +7,9 @@ describe("Worker", () => {
 
   beforeAll(async () => {
     worker = await unstable_dev("src/index.ts", {
+      vars: {
+        WORKER_ENV: "production",
+      },
       experimental: { disableExperimentalWarning: true },
     });
   });
@@ -50,6 +53,17 @@ describe("Worker", () => {
       expect(extension).toHaveProperty("displayName");
       // @ts-expect-error please be quiet typescript
       expect(extension.name).toBe("javascript");
+    }
+  });
+
+  test("should work without an nls file", async () => {
+    const resp = await worker.fetch("/builtin-extensions/vscode-api-tests");
+    if (resp) {
+      const extension = await resp.json();
+      expect(extension).toBeTypeOf("object");
+      expect(extension).toHaveProperty("name");
+      // @ts-expect-error please be quiet typescript
+      expect(extension.name).toBe("vscode-api-tests");
     }
   });
 });
