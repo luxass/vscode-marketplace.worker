@@ -18,6 +18,10 @@ app.get(
   }),
 );
 
+app.get("/view-source", (ctx) => {
+  return ctx.redirect("https://github.com/luxass/vscode-api.worker");
+});
+
 app.use("*", async (ctx, next) => {
   const url = new URL(ctx.req.url);
   if (url.host.startsWith("vscode-releases") && url.pathname !== "/releases") {
@@ -45,12 +49,9 @@ app.onError(async (err, ctx) => {
 });
 
 app.notFound(async () => {
-  console.info(JSON.stringify(app.routes, null, 2));
-
   return new Response("Not found", {
     status: 404,
   });
 });
-console.info(JSON.stringify(app.routes, null, 2));
 
 export default app;
