@@ -7,7 +7,6 @@
     "dev": "wrangler dev",
     "build": "wrangler deploy --dry-run --outdir=dist",
     "deploy": "wrangler deploy",
-    "test": "vitest run",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
@@ -24,7 +23,6 @@
     "@types/semver": "^7.5.6",
     "eslint": "^8.55.0",
     "typescript": "^5.3.2",
-    "vitest": "^0.34.6",
     "wrangler": "^3.18.0"
   }
 }
