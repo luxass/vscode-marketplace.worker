@@ -8,9 +8,12 @@ describe("worker", () => {
   beforeAll(async () => {
     worker = await unstable_dev("src/index.ts", {
       vars: {
-        WORKER_ENV: "production",
+        ENVIRONMENT: "production",
       },
-      experimental: { disableExperimentalWarning: true },
+
+      experimental: {
+        disableExperimentalWarning: true,
+      },
     });
   });
 
