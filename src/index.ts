@@ -22,19 +22,6 @@ app.get("/view-source", (ctx) => {
   return ctx.redirect("https://github.com/luxass/vscode-api.worker");
 });
 
-app.use("*", async (ctx, next) => {
-  const url = new URL(ctx.req.url);
-  if (url.host.startsWith("vscode-releases") && url.pathname !== "/releases") {
-    return ctx.redirect("/releases");
-  }
-
-  if (url.host.startsWith("latest-vscode-release") && url.pathname !== "/releases/latest") {
-    return ctx.redirect("/releases/latest");
-  }
-
-  return await next();
-});
-
 app.route("/", routes);
 
 app.onError(async (err, ctx) => {
@@ -42,7 +29,7 @@ app.onError(async (err, ctx) => {
     return err.getResponse();
   }
 
-  const message = ctx.env.WORKER_ENV === "production" ? "Internal server error" : err.stack;
+  const message = ctx.env.ENVIRONMENT === "production" ? "Internal server error" : err.stack;
   return new Response(message, {
     status: 500,
   });
