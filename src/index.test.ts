@@ -14,6 +14,8 @@ describe("worker", () => {
       experimental: {
         disableExperimentalWarning: true,
       },
+      logLevel: "debug",
+      local: true,
     });
   });
 
