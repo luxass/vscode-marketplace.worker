@@ -10,12 +10,12 @@ describe("worker", () => {
       vars: {
         ENVIRONMENT: "production",
       },
-
       experimental: {
         disableExperimentalWarning: true,
       },
-      logLevel: "debug",
-      local: true,
+      // will fail if not set to false
+      // but this should be set to true....
+      local: false,
     });
   });
 
