@@ -19,7 +19,7 @@ builtinExtensionsRouter.get("/", async (ctx) => {
       object: files,
     },
   } = await octokit.graphql<{
-    repository: Repository
+    repository: Repository;
   }>(BUILTIN_QUERY, {
     path: "HEAD:extensions",
     headers: {

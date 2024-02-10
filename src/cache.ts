@@ -3,9 +3,9 @@
 import type { MiddlewareHandler } from "hono";
 
 export function cache(options: {
-  cacheName: string
-  wait?: boolean
-  cacheControl?: string
+  cacheName: string;
+  wait?: boolean;
+  cacheControl?: string;
 }): MiddlewareHandler {
   if (options.wait === undefined) {
     options.wait = false;
