@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { logger } from "hono/logger";
+import { prettyJSON } from "hono/pretty-json";
 import { HTTPException } from "hono/http-exception";
 import { cache } from "./cache";
 import type { HonoContext } from "./types";
@@ -10,6 +11,7 @@ import {
 const app = new Hono<HonoContext>();
 
 app.use("*", logger());
+app.use(prettyJSON());
 app.get(
   "*",
   cache({
