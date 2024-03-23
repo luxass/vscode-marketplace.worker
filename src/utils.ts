@@ -1,12 +1,11 @@
-import {
-  Octokit,
-} from "@octokit/core";
-import {
-  paginateRest,
-} from "@octokit/plugin-paginate-rest";
+import { Octokit } from "@octokit/core";
+import { paginateRest } from "@octokit/plugin-paginate-rest";
+import type { Repository } from "github-schema";
+import type { $$Octokit } from "./types";
 
 export function base64ToRawText(base64: string) {
-  const base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+  const base64Chars
+    = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
   const paddingChar = "=";
   let output = "";
   let buffer = 0;
@@ -57,7 +56,10 @@ export function translate<T>(originalObject: T, translationValues: any): T {
         const translation = translationValues[placeholder];
 
         if (translation) {
-          translatedObject[key] = value.replace(`%${placeholder}%`, translation);
+          translatedObject[key] = value.replace(
+            `%${placeholder}%`,
+            translation,
+          );
         } else {
           translatedObject[key] = value;
         }
@@ -100,3 +102,29 @@ export const BUILTIN_QUERY = `#graphql
     }
   }
 `;
+
+export async function getBuiltinExtensionFiles(
+  octokit: $$Octokit,
+  path: string,
+) {
+  const {
+    repository: { object: files },
+  } = await octokit.graphql<{
+    repository: Repository;
+  }>(BUILTIN_QUERY, {
+    path: `HEAD:${path}`,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!files) {
+    return null;
+  }
+
+  if (!("entries" in files)) {
+    return null;
+  }
+
+  return files;
+}

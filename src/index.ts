@@ -4,9 +4,7 @@ import { prettyJSON } from "hono/pretty-json";
 import { HTTPException } from "hono/http-exception";
 import { cache } from "./cache";
 import type { HonoContext } from "./types";
-import {
-  routes,
-} from "./routes";
+import { router } from "./routes";
 
 const app = new Hono<HonoContext>();
 
@@ -24,14 +22,15 @@ app.get("/view-source", (ctx) => {
   return ctx.redirect("https://github.com/luxass/vscode-api.worker");
 });
 
-app.route("/", routes);
+app.route("/", router);
 
 app.onError(async (err, ctx) => {
   if (err instanceof HTTPException) {
     return err.getResponse();
   }
 
-  const message = ctx.env.ENVIRONMENT === "production" ? "Internal server error" : err.stack;
+  const message
+    = ctx.env.ENVIRONMENT === "production" ? "Internal server error" : err.stack;
   return new Response(message, {
     status: 500,
   });

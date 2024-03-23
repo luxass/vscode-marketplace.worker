@@ -1,14 +1,19 @@
 import { Hono } from "hono";
 import type { HonoContext } from "../types";
-import {
-  releasesRouter,
-} from "./releases";
+import { $Octokit } from "../utils";
+import { releasesRouter } from "./releases";
+import { builtinExtensionsRouter } from "./builtin-extensions";
 
-import {
-  builtinExtensionsRouter,
-} from "./builtin-extensions";
+export const router = new Hono<HonoContext>();
 
-export const routes = new Hono<HonoContext>();
+router.use(async (ctx, next) => {
+  const octokit = new $Octokit({
+    auth: ctx.env.GITHUB_TOKEN,
+  });
 
-routes.route("/", releasesRouter);
-routes.route("/", builtinExtensionsRouter);
+  ctx.set("octokit", octokit);
+
+  await next();
+});
+router.route("/", releasesRouter);
+router.route("/", builtinExtensionsRouter);
