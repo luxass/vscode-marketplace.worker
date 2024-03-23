@@ -1,15 +1,45 @@
 import { Hono } from 'hono'
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import type { HonoContext, Repository } from '../../types'
 import { $Octokit, BUILTIN_QUERY } from '../../utils'
+import { BUILTIN_EXTENSION_SCHEMA } from '../../schemas'
 import {
   builtinExtensionRouter,
 } from './:ext'
 
-export const builtinExtensionsRouter = new Hono<HonoContext>().basePath('/builtin-extensions')
+export const builtinExtensionsRouter = new OpenAPIHono<HonoContext>()
 
-builtinExtensionsRouter.route('/', builtinExtensionRouter)
+const route = createRoute({
+  method: 'get',
+  path: '/builtin-extensions',
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: z
+            .object({
+              extensions: z.array(
+                BUILTIN_EXTENSION_SCHEMA,
+              ),
+            }),
+        },
+      },
+      description: 'Retrieve a list of all releases',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            error: z.string(),
+          }),
+        },
+      },
+      description: 'No builtin extensions found',
+    },
+  },
+})
 
-builtinExtensionsRouter.get('/', async (ctx) => {
+builtinExtensionsRouter.openapi(route, async (ctx) => {
   const octokit = new $Octokit({
     auth: ctx.env.GITHUB_TOKEN,
   })
@@ -28,7 +58,11 @@ builtinExtensionsRouter.get('/', async (ctx) => {
   })
 
   if (!files.entries) {
-    return new Response('Not found', { status: 404 })
+    return ctx.json({
+      error: 'No builtin extensions found',
+    }, 404, {
+      'Content-Type': 'application/json',
+    })
   }
 
   return ctx.json({
@@ -39,6 +73,10 @@ builtinExtensionsRouter.get('/', async (ctx) => {
       }
 
       return entries.some((entry) => entry.name === 'package.json' && entry.type === 'blob')
-    }).map((entry) => entry.name),
+    }).map((entry) => ({
+      name: entry.name,
+    })),
   })
 })
+
+builtinExtensionsRouter.route('/builtin-extensions', builtinExtensionRouter)

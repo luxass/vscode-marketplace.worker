@@ -1,16 +1,35 @@
-import { Hono } from 'hono'
 import semver from 'semver'
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import type { HonoContext } from '../../types'
 import { $Octokit } from '../../utils'
+import { RELEASE_SCHEMA } from '../../schemas'
 import {
   latestReleaseRouter,
 } from './latest'
 
-export const releasesRouter = new Hono<HonoContext>().basePath('/releases')
+export const releasesRouter = new OpenAPIHono<HonoContext>()
 
-releasesRouter.route('/latest', latestReleaseRouter)
+const route = createRoute({
+  method: 'get',
+  path: '/releases',
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: z
+            .object({
+              releases: z.array(
+                RELEASE_SCHEMA,
+              ),
+            }),
+        },
+      },
+      description: 'Retrieve a list of all releases',
+    },
+  },
+})
 
-releasesRouter.get('/', async (ctx) => {
+releasesRouter.openapi(route, async (ctx) => {
   const octokit = new $Octokit({
     auth: ctx.env.GITHUB_TOKEN,
   })
@@ -30,3 +49,5 @@ releasesRouter.get('/', async (ctx) => {
     'Content-Type': 'application/json',
   })
 })
+
+releasesRouter.route('/releases/latest', latestReleaseRouter)

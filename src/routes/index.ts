@@ -1,4 +1,4 @@
-import { Hono } from 'hono'
+import { OpenAPIHono } from '@hono/zod-openapi'
 import type { HonoContext } from '../types'
 import {
   releasesRouter,
@@ -8,7 +8,7 @@ import {
   builtinExtensionsRouter,
 } from './builtin-extensions'
 
-export const routes = new Hono<HonoContext>()
+export const routes = new OpenAPIHono<HonoContext>()
 
 routes.route('/', releasesRouter)
 routes.route('/', builtinExtensionsRouter)
