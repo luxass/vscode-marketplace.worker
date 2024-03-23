@@ -1,14 +1,14 @@
-import { Hono } from "hono";
-import type { HonoContext } from "../types";
+import { Hono } from 'hono'
+import type { HonoContext } from '../types'
 import {
   releasesRouter,
-} from "./releases";
+} from './releases'
 
 import {
   builtinExtensionsRouter,
-} from "./builtin-extensions";
+} from './builtin-extensions'
 
-export const routes = new Hono<HonoContext>();
+export const routes = new Hono<HonoContext>()
 
-routes.route("/", releasesRouter);
-routes.route("/", builtinExtensionsRouter);
+routes.route('/', releasesRouter)
+routes.route('/', builtinExtensionsRouter)
