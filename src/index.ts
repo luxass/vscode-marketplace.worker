@@ -1,14 +1,13 @@
-import { Hono } from 'hono'
+import { OpenAPIHono } from '@hono/zod-openapi'
+import { apiReference } from '@scalar/hono-api-reference'
+import { HTTPException } from 'hono/http-exception'
 import { logger } from 'hono/logger'
 import { prettyJSON } from 'hono/pretty-json'
-import { HTTPException } from 'hono/http-exception'
-import { apiReference } from '@scalar/hono-api-reference'
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { cache } from './cache'
-import type { HonoContext } from './types'
 import {
-  routes,
+  router,
 } from './routes'
+import type { HonoContext } from './types'
 
 const app = new OpenAPIHono<HonoContext>()
 
@@ -22,7 +21,7 @@ app.get(
   }),
 )
 
-app.route('/', routes)
+app.route('/', router)
 
 app.get(
   '/scalar',

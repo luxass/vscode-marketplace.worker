@@ -1,8 +1,7 @@
-import { Hono } from 'hono'
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
-import type { HonoContext, Repository } from '../../types'
-import { $Octokit, BUILTIN_QUERY } from '../../utils'
 import { BUILTIN_EXTENSION_SCHEMA } from '../../schemas'
+import type { HonoContext, Repository } from '../../types'
+import { BUILTIN_QUERY } from '../../utils'
 import {
   builtinExtensionRouter,
 } from './:ext'
@@ -24,7 +23,7 @@ const route = createRoute({
             }),
         },
       },
-      description: 'Retrieve a list of all releases',
+      description: 'Retrieve a list of all builtin extensions',
     },
     404: {
       content: {
@@ -40,9 +39,7 @@ const route = createRoute({
 })
 
 builtinExtensionsRouter.openapi(route, async (ctx) => {
-  const octokit = new $Octokit({
-    auth: ctx.env.GITHUB_TOKEN,
-  })
+  const octokit = ctx.get('octokit')
 
   const {
     repository: {

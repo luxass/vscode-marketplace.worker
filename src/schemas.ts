@@ -7,4 +7,4 @@ export const RELEASE_SCHEMA = z.object({
 
 export const BUILTIN_EXTENSION_SCHEMA = z.object({
   name: z.string(),
-})
+}).openapi('Builtin Extension')

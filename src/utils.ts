@@ -4,6 +4,7 @@ import {
 import {
   paginateRest,
 } from '@octokit/plugin-paginate-rest'
+import type { $$Octokit, Repository } from './types'
 
 export function base64ToRawText(base64: string) {
   const base64Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
@@ -100,3 +101,29 @@ export const BUILTIN_QUERY = `#graphql
     }
   }
 `
+
+export async function getBuiltinExtensionFiles(
+  octokit: $$Octokit,
+  path: string,
+) {
+  const {
+    repository: { object: files },
+  } = await octokit.graphql<{
+    repository: Repository
+  }>(BUILTIN_QUERY, {
+    path: `HEAD:${path}`,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
+
+  if (!files) {
+    return null
+  }
+
+  if (!('entries' in files)) {
+    return null
+  }
+
+  return files
+}

@@ -1,10 +1,84 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import type { HonoContext, Repository } from '../../types'
-import { $Octokit, BUILTIN_QUERY, base64ToRawText, translate } from '../../utils'
+import { $Octokit, BUILTIN_QUERY, base64ToRawText, getBuiltinExtensionFiles, translate } from '../../utils'
 import { BUILTIN_EXTENSION_SCHEMA } from '../../schemas'
 
-export const builtinExtensionRouter = new OpenAPIHono<HonoContext>()
+type BuiltinExtensionHonoContext = HonoContext & {
+  Variables: {
+    builtinExtensionName: string
+    builtinExtension: Record<string, unknown>
+  }
+}
 
+export const builtinExtensionRouter = new OpenAPIHono<BuiltinExtensionHonoContext, {}, '/:ext'>()
+
+builtinExtensionRouter.use('*', async (ctx, next) => {
+  const octokit = ctx.get('octokit')
+  const params = ctx.req.param()
+  console.log(params)
+  if (!params || params.ext) {
+    return ctx.notFound()
+  }
+
+  const extName = params.ext
+
+  const files = await getBuiltinExtensionFiles(
+    octokit,
+    `extensions/${extName}`,
+  )
+
+  if (!files || !('entries' in files) || !files.entries) {
+    return ctx.notFound()
+  }
+
+  const pkgEntry = files.entries.find((entry) => entry.name === 'package.json')
+  if (!pkgEntry) {
+    return ctx.notFound()
+  }
+
+  const { data: pkgJSONData } = await octokit.request(
+    'GET /repos/{owner}/{repo}/contents/{path}',
+    {
+      owner: 'microsoft',
+      repo: 'vscode',
+      path: pkgEntry.path!,
+    },
+  )
+
+  if (Array.isArray(pkgJSONData) || pkgJSONData.type !== 'file') {
+    return ctx.notFound()
+  }
+
+  const pkg = JSON.parse(base64ToRawText(pkgJSONData.content))
+
+  let result = pkg
+  const pkgNLSEntry = files.entries.find(
+    (entry) => entry.name === 'package.nls.json',
+  )
+
+  if (pkgNLSEntry) {
+    const { data: pkgNLSJSONData } = await octokit.request(
+      'GET /repos/{owner}/{repo}/contents/{path}',
+      {
+        owner: 'microsoft',
+        repo: 'vscode',
+        path: pkgNLSEntry.path!,
+      },
+    )
+
+    if (Array.isArray(pkgNLSJSONData) || pkgNLSJSONData.type !== 'file') {
+      return ctx.notFound()
+    }
+
+    const pkgNLSJSON = JSON.parse(base64ToRawText(pkgNLSJSONData.content))
+
+    result = translate(pkg, pkgNLSJSON)
+  }
+
+  ctx.set('builtinExtensionName', extName)
+  ctx.set('builtinExtension', result)
+  await next()
+})
 const route = createRoute({
   method: 'get',
   path: '/{ext}',
@@ -41,9 +115,7 @@ const route = createRoute({
 })
 
 builtinExtensionRouter.openapi(route, async (ctx) => {
-  const octokit = new $Octokit({
-    auth: ctx.env.GITHUB_TOKEN,
-  })
+  const octokit = ctx.get('octokit')
 
   const extName = ctx.req.param('ext')
   if (!extName) {
