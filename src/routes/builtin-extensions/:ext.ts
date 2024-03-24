@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
-import type { HonoContext, Repository } from '../../types'
-import { $Octokit, BUILTIN_QUERY, base64ToRawText, getBuiltinExtensionFiles, translate } from '../../utils'
 import { BUILTIN_EXTENSION_SCHEMA } from '../../schemas'
+import type { HonoContext, Repository } from '../../types'
+import { BUILTIN_QUERY, base64ToRawText, getBuiltinExtensionFiles, translate } from '../../utils'
 
 type BuiltinExtensionHonoContext = HonoContext & {
   Variables: {
@@ -10,13 +10,12 @@ type BuiltinExtensionHonoContext = HonoContext & {
   }
 }
 
-export const builtinExtensionRouter = new OpenAPIHono<BuiltinExtensionHonoContext, {}, '/:ext'>()
+export const builtinExtensionRouter = new OpenAPIHono<BuiltinExtensionHonoContext>()
 
-builtinExtensionRouter.use('*', async (ctx, next) => {
+builtinExtensionRouter.use('/:ext/*', async (ctx, next) => {
   const octokit = ctx.get('octokit')
   const params = ctx.req.param()
-  console.log(params)
-  if (!params || params.ext) {
+  if (!params || !params.ext) {
     return ctx.notFound()
   }
 
@@ -79,6 +78,7 @@ builtinExtensionRouter.use('*', async (ctx, next) => {
   ctx.set('builtinExtension', result)
   await next()
 })
+
 const route = createRoute({
   method: 'get',
   path: '/{ext}',
