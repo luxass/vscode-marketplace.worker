@@ -1,5 +1,4 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
-import { BUILTIN_EXTENSION_SCHEMA } from '../../schemas'
 import type { HonoContext, Repository } from '../../types'
 import { BUILTIN_QUERY } from '../../utils'
 import {

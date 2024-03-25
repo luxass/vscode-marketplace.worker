@@ -1,5 +1,4 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
-import { BUILTIN_EXTENSION_SCHEMA } from '../../schemas'
 import type { HonoContext, Repository } from '../../types'
 import { BUILTIN_QUERY, base64ToRawText, getBuiltinExtensionFiles, translate } from '../../utils'
 
@@ -92,11 +91,7 @@ const route = createRoute({
       content: {
         'application/json': {
           schema: z
-            .object({
-              extensions: z.array(
-                BUILTIN_EXTENSION_SCHEMA,
-              ),
-            }),
+            .unknown(),
         },
       },
       description: 'Retrieve a specific builtin extension',

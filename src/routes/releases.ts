@@ -13,11 +13,9 @@ const releasesRoute = createRoute({
       content: {
         'application/json': {
           schema: z
-            .object({
-              releases: z.array(
-                RELEASE_SCHEMA,
-              ),
-            }),
+            .array(
+              RELEASE_SCHEMA,
+            ),
         },
       },
       description: 'Retrieve a list of all releases',
@@ -34,14 +32,16 @@ releasesRouter.openapi(releasesRoute, async (ctx) => {
     per_page: 100,
   }).then((releases) => releases.filter((release) => semver.gte(release.tag_name, '1.45.0')))
 
-  return ctx.json({
-    releases: releases.map((release) => ({
+  return ctx.json(
+    releases.map((release) => ({
       tag: release.tag_name,
       url: release.url,
     })),
-  }, 200, {
-    'Content-Type': 'application/json',
-  })
+    200,
+    {
+      'Content-Type': 'application/json',
+    },
+  )
 })
 
 const latestReleaseRoute = createRoute({

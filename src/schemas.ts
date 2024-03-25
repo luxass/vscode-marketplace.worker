@@ -5,6 +5,6 @@ export const RELEASE_SCHEMA = z.object({
   url: z.string(),
 }).openapi('Release')
 
-export const BUILTIN_EXTENSION_SCHEMA = z.object({
-  name: z.string(),
-}).openapi('Builtin Extension')
+// export const CONTRIBUTES_SCHEMA = z.object({
+
+// })
