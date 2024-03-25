@@ -99,7 +99,7 @@ const route = createRoute({
             }),
         },
       },
-      description: 'Retrieve a list of all releases',
+      description: 'Retrieve a specific builtin extension',
     },
     404: {
       content: {
@@ -211,4 +211,98 @@ builtinExtensionRouter.openapi(route, async (ctx) => {
   }
 
   return ctx.json(result)
+})
+
+const contributesRoute = createRoute({
+  method: 'get',
+  path: '/{ext}/contributes',
+  request: {
+    params: z.object({
+      ext: z.string(),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: z
+            .record(z.unknown()),
+        },
+      },
+      description: 'Retrieve a list of contributes for a specific builtin extension',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            error: z.string(),
+          }),
+        },
+      },
+      description: 'No builtin extensions found',
+    },
+  },
+})
+
+builtinExtensionRouter.openapi(contributesRoute, async (ctx) => {
+  const ext = ctx.get('builtinExtension')
+  if (!ext) {
+    return ctx.json({
+      error: 'No builtin extension found',
+    }, 404, {
+      'Content-Type': 'application/json',
+    })
+  }
+
+  return ctx.json(ext.contributes)
+})
+
+const configurationRoute = createRoute({
+  method: 'get',
+  path: '/{ext}/configuration',
+  request: {
+    params: z.object({
+      ext: z.string(),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: z.unknown(),
+        },
+      },
+      description: 'Retrieve the package.json for a specific builtin extension',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            error: z.string(),
+          }),
+        },
+      },
+      description: 'No builtin extensions found',
+    },
+  },
+})
+
+builtinExtensionRouter.openapi(configurationRoute, async (ctx) => {
+  const ext = ctx.get('builtinExtension')
+  if (
+    !ext
+    || !('contributes' in ext)
+    || !ext.contributes
+    || typeof ext.contributes !== 'object'
+    || !('configuration' in ext.contributes)
+    || !ext.contributes.configuration
+  ) {
+    return ctx.json({
+      error: 'No builtin extension found',
+    }, 404, {
+      'Content-Type': 'application/json',
+    })
+  }
+
+  return ctx.json(ext.contributes.configuration)
 })

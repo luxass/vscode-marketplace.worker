@@ -32,7 +32,6 @@ app.get(
   }),
 )
 
-// The OpenAPI documentation will be available at /doc
 app.doc('/openapi.json', {
   openapi: '3.0.0',
   info: {
