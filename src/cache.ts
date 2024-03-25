@@ -16,6 +16,7 @@ export function cache(options: {
   }
 
   return async (c, next) => {
+    console.warn('cache', c.env.WORKER_ENV)
     if (c.env.WORKER_ENV !== 'production') {
       return await next()
     }
