@@ -42,7 +42,7 @@ app.get(
 app.route('/', router)
 
 app.get(
-  '/scalar',
+  '/',
   apiReference({
     spec: {
       url: '/openapi.json',

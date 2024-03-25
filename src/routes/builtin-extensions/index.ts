@@ -18,7 +18,7 @@ const route = createRoute({
           schema: z
             .object({
               extensions: z.array(
-                BUILTIN_EXTENSION_SCHEMA,
+                z.string(),
               ),
             }),
         },
@@ -70,9 +70,7 @@ builtinExtensionsRouter.openapi(route, async (ctx) => {
       }
 
       return entries.some((entry) => entry.name === 'package.json' && entry.type === 'blob')
-    }).map((entry) => ({
-      name: entry.name,
-    })),
+    }).map((entry) => entry.name),
   })
 })
 
