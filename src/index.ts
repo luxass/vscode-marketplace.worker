@@ -1,30 +1,48 @@
-import { Hono } from 'hono'
+import { OpenAPIHono } from '@hono/zod-openapi'
+import { apiReference } from '@scalar/hono-api-reference'
+import { HTTPException } from 'hono/http-exception'
 import { logger } from 'hono/logger'
 import { prettyJSON } from 'hono/pretty-json'
-import { HTTPException } from 'hono/http-exception'
 import { cache } from './cache'
-import type { HonoContext } from './types'
 import {
-  routes,
+  router,
 } from './routes'
+import type { HonoContext } from './types'
 
-const app = new Hono<HonoContext>()
+const app = new OpenAPIHono<HonoContext>()
 
 app.use('*', logger())
 app.use(prettyJSON())
 app.get(
   '*',
   cache({
-    cacheName: 'vscode-api',
+    cacheName: 'vscode',
     cacheControl: 'max-age=3600',
   }),
 )
 
-app.get('/view-source', (ctx) => {
-  return ctx.redirect('https://github.com/luxass/vscode-api.worker')
+app.route('/', router)
+
+app.get(
+  '/scalar',
+  apiReference({
+    spec: {
+      url: '/openapi.json',
+    },
+  }),
+)
+
+app.doc('/openapi.json', {
+  openapi: '3.0.0',
+  info: {
+    version: '1.0.0',
+    title: 'My API',
+  },
 })
 
-app.route('/', routes)
+app.get('/view-source', (ctx) => {
+  return ctx.redirect('https://github.com/luxass/vscode.worker')
+})
 
 app.onError(async (err, ctx) => {
   if (err instanceof HTTPException) {

@@ -1,3 +1,5 @@
+import type { $Octokit } from './utils'
+
 export interface Repository {
   object: RepositoryObject
 }
@@ -21,4 +23,9 @@ export interface HonoContext {
     GITHUB_TOKEN: string
     ENVIRONMENT: string
   }
+  Variables: {
+    octokit: $$Octokit
+  }
 }
+
+export type $$Octokit = InstanceType<typeof $Octokit>
