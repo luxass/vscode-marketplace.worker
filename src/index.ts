@@ -29,6 +29,8 @@ app.get(
     spec: {
       url: '/openapi.json',
     },
+    layout: 'modern',
+    theme: 'bluePlanet',
   }),
 )
 
@@ -36,7 +38,7 @@ app.doc('/openapi.json', {
   openapi: '3.0.0',
   info: {
     version: '1.0.0',
-    title: 'My API',
+    title: 'A Cloudflare worker that offers a JSON API to retrieve information about built-in Visual Studio Code extensions.',
   },
 })
 
