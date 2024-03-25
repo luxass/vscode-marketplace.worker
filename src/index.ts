@@ -3,7 +3,6 @@ import { apiReference } from '@scalar/hono-api-reference'
 import { HTTPException } from 'hono/http-exception'
 import { logger } from 'hono/logger'
 import { prettyJSON } from 'hono/pretty-json'
-import { cache } from './cache'
 import {
   router,
 } from './routes'
@@ -13,12 +12,31 @@ const app = new OpenAPIHono<HonoContext>()
 
 app.use('*', logger())
 app.use(prettyJSON())
+
 app.get(
   '*',
-  cache({
-    cacheName: 'vscode',
-    cacheControl: 'max-age=3600',
-  }),
+  async (ctx, next) => {
+    if (ctx.env.ENVIRONMENT !== 'production' && ctx.env.ENVIRONMENT !== 'staging') {
+      return await next()
+    }
+    const key = ctx.req.url
+    const cache = await caches.open('vscode')
+
+    const response = await cache.match(key)
+    if (!response) {
+      await next()
+      if (!ctx.res.ok) {
+        return
+      }
+
+      ctx.res.headers.set('Cache-Control', 'public, max-age=3600')
+
+      const response = ctx.res.clone()
+      ctx.executionCtx.waitUntil(cache.put(key, response))
+    } else {
+      return new Response(response.body, response)
+    }
+  },
 )
 
 app.route('/', router)
