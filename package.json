@@ -24,7 +24,7 @@
     "@cloudflare/workers-types": "^4.20240320.1",
     "@luxass/eslint-config": "^4.2.12",
     "@types/semver": "^7.5.8",
-    "eslint": "^8.57.0",
+    "eslint": "^9.0.0",
     "eslint-plugin-format": "^0.1.0",
     "typescript": "^5.4.3",
     "wrangler": "^3.37.0"
