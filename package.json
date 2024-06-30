@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@hono/zod-openapi": "^0.9.9",
+    "@hono/zod-openapi": "^0.14.0",
     "@octokit/core": "^6.0.1",
     "@octokit/plugin-paginate-rest": "^10.0.0",
     "@scalar/hono-api-reference": "^0.4.17",
